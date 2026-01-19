@@ -16,10 +16,11 @@
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://username.github.io/phonetics-word-addon/taskpane.html"/>
+    <SourceLocation DefaultValue="https://chmse.github.io/phonetics-word-addon/taskpane.html"/>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
 </OfficeApp>
+
 
 
