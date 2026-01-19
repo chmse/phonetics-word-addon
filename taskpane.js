@@ -1,61 +1,88 @@
-Office.onReady(() => {
-  document.getElementById("checkBtn").onclick = checkPairsInWord;
+Office.onReady(function() {
+  var btn = document.getElementById("checkBtn");
+  if (btn) {
+    btn.onclick = checkPairsInWord;
+  }
 });
 
-const pairs = [
-  ['س','ث'], ['س','ذ'], ['س','ص'], ['س','ض'], ['س','ظ']
-  // يمكنك إضافة المزيد لاحقًا
+var pairs = [
+  ['س', 'ث'], ['س', 'ذ'], ['س', 'ص'], ['س', 'ض'], ['س', 'ظ']
 ];
 
 function checkPairsInWord() {
-  Word.run(async (context) => {
-    const range = context.document.getSelection();
+  Word.run(function (context) {
+    var range = context.document.getSelection();
     range.load("text");
-    await context.sync();
 
-    const text = range.text;
-    if (!text) {
-      showResult("يرجى تحديد نص داخل المستند.");
-      return;
-    }
+    // الخطوة 1: جلب النص
+    return context.sync().then(function () {
+      var text = range.text;
+      
+      if (!text) {
+        showResult("يرجى تحديد نص داخل المستند.");
+        return;
+      }
 
-    const words = text.split(/\s+/);
-    let errors = [];
+      // تنظيف التنسيق القديم (إزالة الألوان السابقة)
+      range.clearAllFormatting();
 
-    // إزالة أي تمييز سابق
-    range.clearAllFormatting();
+      var words = text.split(/\s+/);
+      var errors = [];
+      var searchResultsArray = []; // لتخزين نتائج البحث للمعالجة لاحقاً
 
-    for (let word of words) {
-      for (let pair of pairs) {
-        const p = pair[0] + pair[1];
-        if (word.includes(p)) {
-          errors.push(`الكلمة «${word}» تحتوي على الثنائية (${p}) غير المقبولة.`);
-
-          const searchResults = range.search(word, {matchCase: true, matchWholeWord: true});
-          searchResults.load("items");
-          await context.sync();
-
-          searchResults.items.forEach(item => {
-            item.font.highlightColor = "#FFD700"; // أصفر للتنبيه
-          });
-
-          break;
+      // الخطوة 2: تحليل الكلمات وتجهيز البحث
+      for (var i = 0; i < words.length; i++) {
+        var word = words[i];
+        
+        for (var j = 0; j < pairs.length; j++) {
+          var p = pairs[j][0] + pairs[j][1];
+          
+          // بديل لـ .includes()
+          if (word.indexOf(p) !== -1) {
+             errors.push('الكلمة «' + word + '» تحتوي على الثنائية (' + p + ') غير المقبولة.');
+             
+             // البحث عن الكلمة داخل الوورد لتلوينها
+             // (matchWholeWord: true لضمان تلوين الكلمة بالكامل فقط)
+             var searchResult = range.search(word, { matchCase: true, matchWholeWord: true });
+             searchResult.load("items");
+             searchResultsArray.push(searchResult);
+             
+             break; // الانتقال للكلمة التالية
+          }
         }
       }
-    }
 
-    await context.sync();
+      // إذا لم تكن هناك أخطاء
+      if (errors.length === 0) {
+         showResult("النص المحدد سليم صوتيًا.", true);
+         return; 
+      }
 
-    if (errors.length) {
-      showResult(errors.join("<br>"), false);
-    } else {
-      showResult("النص المحدد سليم صوتيًا.", true);
+      // الخطوة 3: تنفيذ التلوين (Sync واحد للجميع لزيادة السرعة)
+      return context.sync().then(function() {
+        // الآن وقد تم تحميل نتائج البحث، نقوم بتلوينها
+        for (var k = 0; k < searchResultsArray.length; k++) {
+           var items = searchResultsArray[k].items;
+           for (var m = 0; m < items.length; m++) {
+             items[m].font.highlightColor = "#FFD700"; // أصفر
+           }
+        }
+        
+        // عرض الرسائل للمستخدم
+        showResult(errors.join("<br>"), false);
+      });
+    });
+  })
+  .catch(function (error) {
+    console.log("Error: " + error);
+    if (error instanceof OfficeExtension.Error) {
+      console.log("Debug info: " + JSON.stringify(error.debugInfo));
     }
   });
 }
 
-function showResult(msg, valid = false) {
-  const div = document.getElementById("result");
+function showResult(msg, valid) {
+  var div = document.getElementById("result");
   div.innerHTML = msg;
   div.className = valid ? "result valid" : "result";
 }
